@@ -678,6 +678,7 @@ function setupEventListeners() {
         
         // Setup period filters
         updateReportsPeriodFilter();
+        setupHistoryFilters();
         
         console.log('Event listeners setup completed');
     } catch (error) {
@@ -1334,7 +1335,18 @@ function showPage(pageId) {
     if (pageId === 'reports') {
         setTimeout(() => updateReportsPage(), 100);
     } else if (pageId === 'history') {
-        setTimeout(() => renderAllTransactions(), 100);
+        setTimeout(() => {
+            // Reset filters when opening history page
+            const typeFilter = document.getElementById('typeFilter');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const periodFilter = document.getElementById('historyPeriodFilter');
+            
+            if (typeFilter) typeFilter.value = '';
+            if (categoryFilter) categoryFilter.value = '';
+            if (periodFilter) periodFilter.value = 'month';
+            
+            renderAllTransactions();
+        }, 100);
     } else if (pageId === 'add') {
         setTimeout(() => setupCurrencyInputs(), 100);
     }
@@ -1489,6 +1501,7 @@ function renderRecentTransactions() {
     }
 }
 
+// PERBAIKAN: Fungsi renderAllTransactions dengan filter
 function renderAllTransactions() {
     const container = document.getElementById('transactionsList');
     if (!container) return;
@@ -1503,35 +1516,8 @@ function renderAllTransactions() {
         return;
     }
     
-    // Sort transactions by date (newest first)
-    const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-    
-    container.innerHTML = sortedTransactions.map(transaction => {
-        const date = new Date(transaction.date);
-        const formattedDate = date.toLocaleDateString('id-ID', { 
-            day: 'numeric', 
-            month: 'short',
-            year: 'numeric'
-        });
-        
-        return `
-            <div class="transaction-item" onclick="showTransactionDetail('${transaction.id}')">
-                <div class="transaction-icon ${transaction.type}">
-                    ${transaction.type === 'income' ? 
-                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7,10L12,15L17,10H7Z"/></svg>' :
-                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17,14L12,9L7,14H17Z"/></svg>'
-                    }
-                </div>
-                <div class="transaction-details">
-                    <div class="transaction-title">${transaction.category}</div>
-                    <div class="transaction-subtitle">${transaction.description || 'No description'} • ${formattedDate}</div>
-                </div>
-                <div class="transaction-amount ${transaction.type}">
-                    ${transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
-                </div>
-            </div>
-        `;
-    }).join('');
+    // Apply filters if any
+    applyHistoryFilters();
 }
 
 // Show transaction detail modal
@@ -1779,21 +1765,27 @@ function getFilteredTransactions(period) {
     
     switch (period) {
         case 'today':
+            // Hari ini - dari jam 00:00:00 sampai sekarang
             startDate.setHours(0, 0, 0, 0);
             break;
         case 'week':
+            // 7 hari terakhir
             startDate.setDate(now.getDate() - 7);
             break;
         case 'month':
-            startDate.setMonth(now.getMonth() - 1);
+            // 30 hari terakhir
+            startDate.setDate(now.getDate() - 30);
             break;
         case 'month3':
+            // 3 bulan terakhir
             startDate.setMonth(now.getMonth() - 3);
             break;
         case 'month1': // For reports page
+            // 1 bulan terakhir
             startDate.setMonth(now.getMonth() - 1);
             break;
         case 'month2': // For reports page
+            // 2 bulan terakhir
             startDate.setMonth(now.getMonth() - 2);
             break;
         default:
@@ -1805,6 +1797,97 @@ function getFilteredTransactions(period) {
         const transactionDate = new Date(transaction.date);
         return transactionDate >= startDate && transactionDate <= now;
     });
+}
+
+// PERBAIKAN: Setup history filters
+function setupHistoryFilters() {
+    const typeFilter = document.getElementById('typeFilter');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const historyPeriodFilter = document.getElementById('historyPeriodFilter');
+    
+    if (typeFilter) {
+        typeFilter.addEventListener('change', applyHistoryFilters);
+    }
+    
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', applyHistoryFilters);
+    }
+    
+    if (historyPeriodFilter) {
+        historyPeriodFilter.addEventListener('change', applyHistoryFilters);
+    }
+}
+
+// PERBAIKAN: Enhanced applyHistoryFilters with period filtering
+function applyHistoryFilters() {
+    const typeFilter = document.getElementById('typeFilter');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const periodFilter = document.getElementById('historyPeriodFilter');
+    
+    const selectedType = typeFilter ? typeFilter.value : '';
+    const selectedCategory = categoryFilter ? categoryFilter.value : '';
+    const selectedPeriod = periodFilter ? periodFilter.value : 'month';
+    
+    // Get filtered transactions based on period
+    let filteredTransactions = getFilteredTransactions(selectedPeriod);
+    
+    // Apply type filter
+    if (selectedType) {
+        filteredTransactions = filteredTransactions.filter(t => t.type === selectedType);
+    }
+    
+    // Apply category filter
+    if (selectedCategory) {
+        filteredTransactions = filteredTransactions.filter(t => t.category === selectedCategory);
+    }
+    
+    renderFilteredTransactions(filteredTransactions);
+}
+
+// PERBAIKAN: Function to render filtered transactions
+function renderFilteredTransactions(filteredTransactions) {
+    const container = document.getElementById('transactionsList');
+    if (!container) return;
+    
+    if (filteredTransactions.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-title">Tidak Ada Transaksi</div>
+                <div class="empty-text">Tidak ada transaksi yang sesuai dengan filter</div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort by date (newest first)
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    container.innerHTML = sortedTransactions.map(transaction => {
+        const date = new Date(transaction.date);
+        const formattedDate = date.toLocaleDateString('id-ID', { 
+            day: 'numeric', 
+            month: 'short',
+            year: 'numeric'
+        });
+        
+        return `
+            <div class="transaction-item" onclick="showTransactionDetail('${transaction.id}')">
+                <div class="transaction-icon ${transaction.type}">
+                    ${transaction.type === 'income' ? 
+                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7,10L12,15L17,10H7Z"/></svg>' :
+                        '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17,14L12,9L7,14H17Z"/></svg>'
+                    }
+                </div>
+                <div class="transaction-details">
+                    <div class="transaction-title">${transaction.category}</div>
+                    <div class="transaction-subtitle">${transaction.description || 'No description'} • ${formattedDate}</div>
+                </div>
+                <div class="transaction-amount ${transaction.type}">
+                    ${transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 // PERBAIKAN: Update reports period filter function
@@ -2363,5 +2446,7 @@ window.closeEditModal = closeEditModal;
 window.deleteTransactionPrompt = deleteTransactionPrompt;
 window.deleteTransactionConfirmed = deleteTransactionConfirmed;
 window.getFilteredTransactions = getFilteredTransactions;
+window.applyHistoryFilters = applyHistoryFilters;
+window.renderFilteredTransactions = renderFilteredTransactions;
 
 console.log('Smart Finance Tracker script loaded successfully!');
