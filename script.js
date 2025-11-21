@@ -676,6 +676,9 @@ function setupEventListeners() {
         // Setup currency formatting
         setupCurrencyInputs();
         
+        // Setup period filters
+        updateReportsPeriodFilter();
+        
         console.log('Event listeners setup completed');
     } catch (error) {
         console.error('Error setting up event listeners:', error);
@@ -1769,16 +1772,66 @@ function renderSavingsGoals() {
     }
 }
 
-// Reports functions
-function updateReportsPage() {
-    updatePieChart();
-    updateCategoryBreakdown();
-    updatePeriodSummary();
+// PERBAIKAN: Fungsi untuk memfilter transaksi berdasarkan periode
+function getFilteredTransactions(period) {
+    const now = new Date();
+    let startDate = new Date();
+    
+    switch (period) {
+        case 'today':
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        case 'week':
+            startDate.setDate(now.getDate() - 7);
+            break;
+        case 'month':
+            startDate.setMonth(now.getMonth() - 1);
+            break;
+        case 'month3':
+            startDate.setMonth(now.getMonth() - 3);
+            break;
+        case 'month1': // For reports page
+            startDate.setMonth(now.getMonth() - 1);
+            break;
+        case 'month2': // For reports page
+            startDate.setMonth(now.getMonth() - 2);
+            break;
+        default:
+            // Default to all time
+            return transactions;
+    }
+    
+    return transactions.filter(transaction => {
+        const transactionDate = new Date(transaction.date);
+        return transactionDate >= startDate && transactionDate <= now;
+    });
 }
 
-function updatePieChart() {
-    const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+// PERBAIKAN: Update reports period filter function
+function updateReportsPeriodFilter() {
+    const periodFilter = document.getElementById('reportsPeriodFilter');
+    if (periodFilter) {
+        periodFilter.addEventListener('change', function() {
+            updateReportsPage();
+        });
+    }
+}
+
+// PERBAIKAN: Enhanced updateReportsPage function with period filtering
+function updateReportsPage() {
+    const periodFilter = document.getElementById('reportsPeriodFilter');
+    const selectedPeriod = periodFilter ? periodFilter.value : 'month';
+    
+    updatePieChart(selectedPeriod);
+    updateCategoryBreakdown(selectedPeriod);
+    updatePeriodSummary(selectedPeriod);
+}
+
+// PERBAIKAN: Update pie chart with period filtering
+function updatePieChart(period = 'month') {
+    const filteredTransactions = getFilteredTransactions(period);
+    const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     const balance = totalIncome - totalExpense;
     
     // Update pie chart
@@ -1797,8 +1850,10 @@ function updatePieChart() {
     if (expenseInPie) expenseInPie.textContent = formatCurrency(totalExpense);
 }
 
-function updateCategoryBreakdown() {
-    const expenseTransactions = transactions.filter(t => t.type === 'expense');
+// PERBAIKAN: Update category breakdown with period filtering
+function updateCategoryBreakdown(period = 'month') {
+    const filteredTransactions = getFilteredTransactions(period);
+    const expenseTransactions = filteredTransactions.filter(t => t.type === 'expense');
     const categoryTotals = {};
     
     expenseTransactions.forEach(transaction => {
@@ -1861,7 +1916,7 @@ function getCategoryIcon(category) {
         'Pendidikan': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,3L1,9L12,15L21,10.09V17H23V9M5,13.18V17.18L12,21L19,17.18V13.18L12,17L5,13.18Z"/></svg>',
         'Gaji': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6.5A2,2 0 0,1 14,8.5A2,2 0 0,1 12,10.5A2,2 0 0,1 10,8.5A2,2 0 0,1 12,6.5M12,19A7,7 0 0,1 5,12A1,1 0 0,1 6,11A6,6 0 0,0 12,17A6,6 0 0,0 18,11A1,1 0 0,1 19,12A7,7 0 0,1 12,19Z"/></svg>',
         'Freelance': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4,6H20V16H4M20,18A2,2 0 0,0 22,16V6C22,4.89 21.1,4 20,4H4C2.89,4 2,4.89 2,6V16A2,2 0 0,0 4,18H0V20H24V18H20Z"/></svg>',
-        'Bisnis': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,7V3H2V21H22V7H12M12,7H22V21H12V7M6,19H4V17H6V19M6,15H4V13H6V15M6,11H4V9H6V11M6,7H4V5H6V7M10,19H8V17H10V19M10,15H8V13H10V15M10,11H8V9H10V11M10,7H8V5H10V7M20,19H12V17H14V15H16V13H18V11H20V19Z"/></svg>',
+        'Bisnis': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,7V3H2V21H22V7H12M12,7H22V21H12V7M6,19H4V17H6V19M6,15H4V13H6V15M6,11H4V9H6V11M6,7H4V5H6V7M10,19H8V17H10V19M10,15H8V13H10V15M10,11H8V9H10V11M10,7H8V5H10V7M20,19H12V17H14V15H12V13H14V11H12V9H20V19Z"/></svg>',
         'Investasi': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M16,6L18.29,8.29L13.41,13.17L9.41,9.17L2,16.59L3.41,18L9.41,12L13.41,16L19.71,9.71L22,12V6H16Z"/></svg>',
         'Bonus': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2A2,2 0 0,1 14,4C14,4.74 13.6,5.39 13,5.73V7H14A7,7 0 0,1 21,14H22A1,1 0 0,1 23,15V18A1,1 0 0,1 22,19H21A7,7 0 0,1 14,26H10A7,7 0 0,1 3,19H2A1,1 0 0,1 1,18V15A1,1 0 0,1 2,14H3A7,7 0 0,1 10,7H11V5.73C10.4,5.39 10,4.74 10,4A2,2 0 0,1 12,2M5,16H4V17H5A5,5 0 0,0 10,12A5,5 0 0,0 5,7V16M19,7A5,5 0 0,0 14,12A5,5 0 0,0 19,17H20V16H19V7Z"/></svg>',
         'Hadiah': '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,8A2,2 0 0,0 10,10H14A2,2 0 0,0 12,8M12,6A4,4 0 0,1 16,10H19V12H5V10H8A4,4 0 0,1 12,6M11,14V22H5V14H11M19,14V22H13V14H19Z"/></svg>',
@@ -1870,16 +1925,35 @@ function getCategoryIcon(category) {
     return icons[category] || '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z"/></svg>';
 }
 
-function updatePeriodSummary() {
+// PERBAIKAN: Update period summary with period filtering
+function updatePeriodSummary(period = 'month') {
     const container = document.getElementById('periodSummary');
     if (!container) return;
     
-    const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    const filteredTransactions = getFilteredTransactions(period);
+    const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const totalExpense = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
     const balance = totalIncome - totalExpense;
     const savingsRate = totalIncome > 0 ? ((balance / totalIncome) * 100).toFixed(1) : 0;
     
+    // Get period label
+    const periodLabels = {
+        'today': 'Hari Ini',
+        'week': 'Minggu Ini', 
+        'month': 'Bulan Ini',
+        'month1': '1 Bulan Lalu',
+        'month2': '2 Bulan Lalu',
+        'month3': '3 Bulan Lalu'
+    };
+    
+    const periodLabel = periodLabels[period] || 'Bulan Ini';
+    
     container.innerHTML = `
+        <div style="background: #2A2A2A; padding: 16px; border-radius: 12px; margin-bottom: 16px;">
+            <div style="text-align: center; color: #32E612; font-weight: 600; font-size: 14px;">
+                Periode: ${periodLabel}
+            </div>
+        </div>
         <div class="stats-grid">
             <div class="stat-card income">
                 <div class="stat-value">${formatCurrency(totalIncome)}</div>
@@ -1901,7 +1975,7 @@ function updatePeriodSummary() {
             </div>
             <div style="display: flex; justify-content: space-between;">
                 <span style="color: #8E8E93;">Total Transaksi:</span>
-                <span style="color: #FFFFFF; font-weight: 600;">${transactions.length}</span>
+                <span style="color: #FFFFFF; font-weight: 600;">${filteredTransactions.length}</span>
             </div>
         </div>
     `;
@@ -2288,5 +2362,6 @@ window.deleteTransactionFromDetail = deleteTransactionFromDetail;
 window.closeEditModal = closeEditModal;
 window.deleteTransactionPrompt = deleteTransactionPrompt;
 window.deleteTransactionConfirmed = deleteTransactionConfirmed;
+window.getFilteredTransactions = getFilteredTransactions;
 
 console.log('Smart Finance Tracker script loaded successfully!');
