@@ -265,37 +265,8 @@ function renderAllTransactions() {
         return;
     }
     
-    // Sort transactions by date (newest first)
-    const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-    
-    container.innerHTML = sortedTransactions.map(transaction => {
-        const date = new Date(transaction.date);
-        const formattedDate = date.toLocaleDateString('id-ID', { 
-            day: 'numeric', 
-            month: 'short',
-            year: 'numeric'
-        });
-        
-        return `
-            <div class="transaction-item" onclick="showTransactionDetail('${transaction.id}')">
-                <div class="transaction-icon ${transaction.type}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        ${transaction.type === 'income' ? 
-                            '<path d="M7,10L12,15L17,10H7Z"/>' : 
-                            '<path d="M7,10L12,15L17,10H7Z" style="transform: rotate(180deg);"/>'
-                        }
-                    </svg>
-                </div>
-                <div class="transaction-details">
-                    <div class="transaction-title">${transaction.category}</div>
-                    <div class="transaction-subtitle">${transaction.description || 'No description'} • ${formattedDate}</div>
-                </div>
-                <div class="transaction-amount ${transaction.type}">
-                    ${transaction.type === 'income' ? '+' : '-'}${formatCurrency(transaction.amount)}
-                </div>
-            </div>
-        `;
-    }).join('');
+    // Apply filters if any
+    applyHistoryFilters();
 }
 
 function updateHistoryFilters() {
@@ -491,21 +462,27 @@ function getFilteredTransactions(period) {
     
     switch (period) {
         case 'today':
+            // Hari ini - dari jam 00:00:00 sampai sekarang
             startDate.setHours(0, 0, 0, 0);
             break;
         case 'week':
+            // 7 hari terakhir
             startDate.setDate(now.getDate() - 7);
             break;
         case 'month':
-            startDate.setMonth(now.getMonth() - 1);
+            // 30 hari terakhir
+            startDate.setDate(now.getDate() - 30);
             break;
         case 'month3':
+            // 3 bulan terakhir
             startDate.setMonth(now.getMonth() - 3);
             break;
         case 'month1': // For reports page
+            // 1 bulan terakhir
             startDate.setMonth(now.getMonth() - 1);
             break;
         case 'month2': // For reports page
+            // 2 bulan terakhir
             startDate.setMonth(now.getMonth() - 2);
             break;
         default:
